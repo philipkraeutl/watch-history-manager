@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Jellyfin.Plugin.WatchHistoryManager</name>
+    </assembly>
+    <members>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Api.WatchHistoryManagerController">
+            <summary>
+            API endpoints for the Watch History Manager plugin.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Api.WatchHistoryManagerController.GetFeatures">
+            <summary>
+            Gets the enabled frontend features.
+            </summary>
+            <returns>The frontend feature flags.</returns>
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Api.WatchHistoryManagerFeaturesDto">
+            <summary>
+            Feature flags exposed to the Jellyfin Web helper script.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Api.WatchHistoryManagerFeaturesDto.EnableStartPointButton">
+            <summary>
+            Gets or sets a value indicating whether the start point button should be shown.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Api.WatchHistoryManagerFeaturesDto.IgnoreSpecials">
+            <summary>
+            Gets or sets a value indicating whether specials / season 0 should be ignored.
+            </summary>
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration">
+            <summary>
+            Plugin configuration.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration"/> class.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.EnableAutoMarkPreviousEpisode">
+            <summary>
+            Gets or sets a value indicating whether the automatic previous episode watch-state logic is enabled.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.MinimumWatchedPercentage">
+            <summary>
+            Gets or sets the minimum watched percentage required before the previous episode may be marked as watched.
+            Example: 75 means the episode must be watched to at least 75 percent.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.MaximumRemainingSeconds">
+            <summary>
+            Gets or sets the maximum remaining seconds allowed before the previous episode may be marked as watched.
+            Example: 240 means the episode may be marked as watched if 4 minutes or less are remaining.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.IgnoreSpecials">
+            <summary>
+            Gets or sets a value indicating whether season 0 / specials should be ignored.
+            </summary>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Configuration.PluginConfiguration.EnableStartPointButton">
+            <summary>
+            Gets or sets a value indicating whether the start point button feature is enabled.
+            </summary>
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Plugin">
+            <summary>
+            The main plugin.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Plugin.#ctor(MediaBrowser.Common.Configuration.IApplicationPaths,MediaBrowser.Model.Serialization.IXmlSerializer)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Jellyfin.Plugin.WatchHistoryManager.Plugin"/> class.
+            </summary>
+            <param name="applicationPaths">Instance of the <see cref="T:MediaBrowser.Common.Configuration.IApplicationPaths"/> interface.</param>
+            <param name="xmlSerializer">Instance of the <see cref="T:MediaBrowser.Model.Serialization.IXmlSerializer"/> interface.</param>
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Plugin.Name">
+            <inheritdoc />
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Plugin.Id">
+            <inheritdoc />
+        </member>
+        <member name="P:Jellyfin.Plugin.WatchHistoryManager.Plugin.Instance">
+            <summary>
+            Gets the current plugin instance.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Plugin.GetPages">
+            <inheritdoc />
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.PluginServiceRegistrator">
+            <summary>
+            Registers services for the plugin.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.PluginServiceRegistrator.RegisterServices(Microsoft.Extensions.DependencyInjection.IServiceCollection,MediaBrowser.Controller.IServerApplicationHost)">
+            <inheritdoc />
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService">
+            <summary>
+            Registers the Watch History Manager frontend script with the JavaScript Injector plugin, if available.
+            </summary>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService.#ctor(Microsoft.Extensions.Logging.ILogger{Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService})">
+            <summary>
+            Initializes a new instance of the <see cref="T:Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService"/> class.
+            </summary>
+            <param name="logger">The logger instance.</param>
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService.StartAsync(System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="M:Jellyfin.Plugin.WatchHistoryManager.Services.JavaScriptInjectorRegistrationService.StopAsync(System.Threading.CancellationToken)">
+            <inheritdoc />
+        </member>
+        <member name="T:Jellyfin.Plugin.WatchHistoryManager.Services.PlaybackMonitorService">
+            <summary>
+            Monitors playback events and marks the previous episode as watched
+            when the next episode of the same series starts and the configured
+            thresholds are reached.
+            </summary>
+        </member>
+    </members>
+</doc>

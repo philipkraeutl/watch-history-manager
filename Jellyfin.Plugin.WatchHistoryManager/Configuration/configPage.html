@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Watch History Manager</title>
+    </head>
+    <body>
+        <div id="WatchHistoryManagerConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+            <div data-role="content">
+                <div class="content-primary">
+                    <form id="WatchHistoryManagerConfigForm">
+                        <h2>Auto-Mark Previous Episode</h2>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="EnableAutoMarkPreviousEpisode" name="EnableAutoMarkPreviousEpisode" type="checkbox" is="emby-checkbox" />
+                                <span>Enable automatic marking of previous episodes as watched</span>
+                            </label>
+                            <div class="fieldDescription">If enabled, the plugin can mark the previous episode as watched when the next episode of the same series is started.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MinimumWatchedPercentage"> Minimum watched percentage </label>
+                            <input id="MinimumWatchedPercentage" name="MinimumWatchedPercentage" type="number" is="emby-input" min="1" max="100" step="1" />
+                            <div class="fieldDescription">Example: 75 means the previous episode must have been watched to at least 75 percent before it can be marked as watched.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="MaximumRemainingSeconds"> Maximum remaining seconds </label>
+                            <input id="MaximumRemainingSeconds" name="MaximumRemainingSeconds" type="number" is="emby-input" min="0" step="1" />
+                            <div class="fieldDescription">Example: 240 means the previous episode can be marked as watched if 4 minutes or less are remaining.</div>
+                        </div>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="IgnoreSpecials" name="IgnoreSpecials" type="checkbox" is="emby-checkbox" />
+                                <span>Ignore specials / season 0</span>
+                            </label>
+                            <div class="fieldDescription">If enabled, episodes from season 0 are ignored by the automatic watch-state logic.</div>
+                        </div>
+
+                        <br />
+
+                        <h2>Start Point Button</h2>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input id="EnableStartPointButton" name="EnableStartPointButton" type="checkbox" is="emby-checkbox" />
+                                <span>Enable “Set start point” button</span>
+                            </label>
+                            <div class="fieldDescription">If enabled, the plugin allows the Jellyfin Web helper script to show a button for setting the current episode as the new start point of a series.</div>
+                        </div>
+
+                        <br />
+
+                        <div>
+                            <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                                <span>Save</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <script type="text/javascript">
+                var WatchHistoryManagerConfig = {
+                    pluginUniqueId: "a3297409-bc1e-4159-87c3-26c9a058f099",
+                };
+
+                document.querySelector("#WatchHistoryManagerConfigPage").addEventListener("pageshow", function () {
+                    Dashboard.showLoadingMsg();
+
+                    ApiClient.getPluginConfiguration(WatchHistoryManagerConfig.pluginUniqueId).then(function (config) {
+                        document.querySelector("#EnableAutoMarkPreviousEpisode").checked = config.EnableAutoMarkPreviousEpisode;
+                        document.querySelector("#MinimumWatchedPercentage").value = config.MinimumWatchedPercentage;
+                        document.querySelector("#MaximumRemainingSeconds").value = config.MaximumRemainingSeconds;
+                        document.querySelector("#IgnoreSpecials").checked = config.IgnoreSpecials;
+                        document.querySelector("#EnableStartPointButton").checked = config.EnableStartPointButton;
+
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+                document.querySelector("#WatchHistoryManagerConfigForm").addEventListener("submit", function (e) {
+                    e.preventDefault();
+
+                    Dashboard.showLoadingMsg();
+
+                    ApiClient.getPluginConfiguration(WatchHistoryManagerConfig.pluginUniqueId).then(function (config) {
+                        config.EnableAutoMarkPreviousEpisode = document.querySelector("#EnableAutoMarkPreviousEpisode").checked;
+
+                        config.MinimumWatchedPercentage = parseInt(document.querySelector("#MinimumWatchedPercentage").value || "75", 10);
+
+                        config.MaximumRemainingSeconds = parseInt(document.querySelector("#MaximumRemainingSeconds").value || "240", 10);
+
+                        config.IgnoreSpecials = document.querySelector("#IgnoreSpecials").checked;
+
+                        config.EnableStartPointButton = document.querySelector("#EnableStartPointButton").checked;
+
+                        ApiClient.updatePluginConfiguration(WatchHistoryManagerConfig.pluginUniqueId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+
+                    return false;
+                });
+            </script>
+        </div>
+    </body>
+</html>

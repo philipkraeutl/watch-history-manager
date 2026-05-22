@@ -1,0 +1,20 @@
+[
+    {
+        "guid": "a3297409-bc1e-4159-87c3-26c9a058f099",
+        "name": "Watch History Manager",
+        "description": "Adds tools for managing episode watch history and start points.",
+        "overview": "Automatically marks previous episodes as watched and provides start point tools for series.",
+        "owner": "philipkraeutl",
+        "category": "General",
+        "versions": [
+            {
+                "version": "0.1.0.0",
+                "changelog": "Initial release with auto-mark previous episode and start point button support.",
+                "targetAbi": "10.11.9.0",
+                "sourceUrl": "https://github.com/philipkraeutl/watch-history-manager/releases/download/v0.1.0.0/watch-history-manager_0.1.0.0.zip",
+                "checksum": "94500BBC1A50E33442F281531FF78786",
+                "timestamp": "2026-05-22T00:00:00Z"
+            }
+        ]
+    }
+]
