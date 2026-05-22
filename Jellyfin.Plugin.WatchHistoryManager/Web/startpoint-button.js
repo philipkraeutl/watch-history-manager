@@ -112,7 +112,7 @@
         return ApiClient.getUrl(path, query || {});
     }
 
-    function apiRequest(method, path, query, body) {
+    async function apiRequest(method, path, query, body) {
         const request = {
             type: method,
             url: getApiUrl(path, query),
@@ -123,7 +123,23 @@
             request.contentType = "application/json";
         }
 
-        return ApiClient.ajax(request);
+        const result = await ApiClient.ajax(request);
+
+        if (result instanceof Response) {
+            const text = await result.text();
+
+            if (!text || !text.trim()) {
+                return null;
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                return text;
+            }
+        }
+
+        return result;
     }
 
     function showMessage(message) {
