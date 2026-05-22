@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 
 function Write-Step {
     param([string]$Message)
+
     Write-Host ""
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
@@ -84,23 +85,21 @@ $ZipArchive = [System.IO.Compression.ZipFile]::Open(
 try {
     $PublishRoot = (Resolve-Path $PublishFullPath).Path.TrimEnd("\", "/")
 
-Get-ChildItem -Path $PublishRoot -Recurse -File | ForEach-Object {
-    $FilePath = $_.FullName
+    Get-ChildItem -Path $PublishRoot -Recurse -File | ForEach-Object {
+        $FilePath = $_.FullName
+        $RelativePath = $FilePath.Substring($PublishRoot.Length).TrimStart("\", "/")
 
-    $RelativePath = $FilePath.Substring($PublishRoot.Length).TrimStart("\", "/")
+        # ZIP entries must use "/" and not "\".
+        # Otherwise Linux extracts "Web\startpoint-button.js" as one file name.
+        $ZipEntryPath = $RelativePath.Replace("\", "/")
 
-    # Important:
-    # ZIP entries must use "/" and not "\".
-    # Otherwise Linux extracts "Web\startpoint-button.js" as one file name.
-    $ZipEntryPath = $RelativePath.Replace("\", "/")
-
-    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-        $ZipArchive,
-        $FilePath,
-        $ZipEntryPath,
-        [System.IO.Compression.CompressionLevel]::Optimal
-    ) | Out-Null
-}
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $ZipArchive,
+            $FilePath,
+            $ZipEntryPath,
+            [System.IO.Compression.CompressionLevel]::Optimal
+        ) | Out-Null
+    }
 }
 finally {
     $ZipArchive.Dispose()
@@ -112,7 +111,6 @@ $ZipRead = [System.IO.Compression.ZipFile]::OpenRead($ZipFullPath)
 
 try {
     $Entries = $ZipRead.Entries | ForEach-Object { $_.FullName }
-
     $BadEntries = $Entries | Where-Object { $_ -like "*\*" }
 
     if ($BadEntries.Count -gt 0) {
@@ -154,28 +152,97 @@ if ($UpdateManifest) {
         throw "manifest.json not found: $ManifestPath"
     }
 
-    $Manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
-    $FoundVersion = $false
     $Timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $ManifestJsonRaw = Get-Content $ManifestPath -Raw
+
+    # Jellyfin expects manifest.json to be an array:
+    # [
+    #   { ... }
+    # ]
+    #
+    # PowerShell may deserialize a single-item array as one object and write it back without [].
+    # Therefore we force array handling here.
+    $Manifest = @($ManifestJsonRaw | ConvertFrom-Json)
+
+    if ($Manifest.Count -eq 0) {
+        throw "manifest.json does not contain any plugin entries."
+    }
+
+    $FoundVersion = $false
+    $AddedVersion = $false
 
     foreach ($Plugin in $Manifest) {
-        foreach ($PluginVersion in $Plugin.versions) {
+        $Versions = @($Plugin.versions)
+
+        if ($Versions.Count -eq 0) {
+            throw "No existing version found in manifest.json to copy from."
+        }
+
+        foreach ($PluginVersion in $Versions) {
             if ($PluginVersion.version -eq $Version) {
                 $PluginVersion.checksum = $Md5
                 $PluginVersion.timestamp = $Timestamp
                 $FoundVersion = $true
+
+                Write-Host "Updated existing manifest version $Version." -ForegroundColor Green
             }
+        }
+
+        if (!$FoundVersion) {
+            $TemplateVersion = $Versions[0]
+
+            # Clone latest version block through JSON roundtrip.
+            $NewVersion = ($TemplateVersion | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+
+            $NewVersion.version = $Version
+            $NewVersion.checksum = $Md5
+            $NewVersion.timestamp = $Timestamp
+
+            if ($NewVersion.changelog) {
+                $NewVersion.changelog = "Release $Version."
+            }
+
+            if ($NewVersion.sourceUrl) {
+                $NewVersion.sourceUrl = $NewVersion.sourceUrl `
+                    -replace "/download/v[^/]+/", "/download/v$Version/" `
+                    -replace "watch-history-manager_[^/]+\.zip", "watch-history-manager_$Version.zip"
+            }
+
+            # Insert new version at the top.
+            $Plugin.versions = @($NewVersion) + $Versions
+
+            $FoundVersion = $true
+            $AddedVersion = $true
+
+            Write-Host "Added new manifest version $Version by copying previous release block." -ForegroundColor Green
         }
     }
 
     if (!$FoundVersion) {
-        throw "Version $Version was not found in manifest.json"
+        throw "Could not update manifest.json."
     }
 
-    $ManifestJson = $Manifest | ConvertTo-Json -Depth 20
+    # Keep outer JSON array even if there is only one plugin entry.
+    $ManifestJson = ConvertTo-Json -InputObject @($Manifest) -Depth 20
     Set-Content -Path $ManifestPath -Value $ManifestJson -Encoding UTF8
 
-    Write-Host "manifest.json updated." -ForegroundColor Green
+    $FirstLine = (Get-Content $ManifestPath -TotalCount 1).Trim()
+
+    if ($FirstLine -ne "[") {
+        throw "manifest.json was written without outer array brackets. First line was: $FirstLine"
+    }
+
+    if ($AddedVersion) {
+        Write-Host ""
+        Write-Host "New manifest entry was added." -ForegroundColor Yellow
+        Write-Host "Make sure you create this GitHub release tag:" -ForegroundColor Yellow
+        Write-Host "v$Version" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "And upload this ZIP:" -ForegroundColor Yellow
+        Write-Host $ZipFullPath -ForegroundColor Yellow
+    }
+
+    Write-Host "manifest.json updated and kept as JSON array." -ForegroundColor Green
 }
 
 Write-Step "Done"
