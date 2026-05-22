@@ -123,16 +123,62 @@ internal sealed class PlaybackMonitorService : IHostedService
         return;
     }
 
-    previous.Item.MarkPlayed(user, DateTime.UtcNow, true);
+    MarkPreviousEpisodeAsWatchedWithDelay(user, previous.Item);
+}
 
-    _logger.LogInformation(
-        "Marked previous episode as watched for user {UserId}: {SeriesName} S{SeasonNumber:00}E{EpisodeNumber:00}, watched {WatchedPercentage:0.00}%, remaining {RemainingSeconds:0}s.",
-        user.Id,
-        previous.Item.SeriesName,
-        previous.Item.ParentIndexNumber,
-        previous.Item.IndexNumber,
-        previous.WatchedPercentage,
-        previous.RemainingSeconds);
+    private void MarkPreviousEpisodeAsWatchedWithDelay(User user, Episode episode)
+{
+    episode.MarkPlayed(user, DateTime.UtcNow, true);
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            episode.MarkPlayed(user, DateTime.UtcNow, true);
+
+            var userData = _userDataManager.GetUserData(user, episode);
+
+            if (userData is null)
+            {
+                _logger.LogWarning(
+                    "Could not clear resume position because user data was null for episode {EpisodeId}.",
+                    episode.Id);
+
+                return;
+            }
+
+            userData.Played = true;
+            userData.PlaybackPositionTicks = 0;
+            userData.LastPlayedDate = DateTime.UtcNow;
+
+            if (userData.PlayCount < 1)
+            {
+                userData.PlayCount = 1;
+            }
+
+            _userDataManager.SaveUserData(
+                user,
+                episode,
+                userData,
+                UserDataSaveReason.TogglePlayed,
+                CancellationToken.None);
+
+            _logger.LogInformation(
+                "Re-applied watched state and cleared resume position for {SeriesName} S{SeasonNumber:00}E{EpisodeNumber:00}.",
+                episode.SeriesName,
+                episode.ParentIndexNumber,
+                episode.IndexNumber);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to re-apply watched state for episode {EpisodeId}.",
+                episode.Id);
+        }
+    });
 }
 
     private static bool IsDirectNextEpisode(Episode previousEpisode, Episode currentEpisode, bool ignoreSpecials)
