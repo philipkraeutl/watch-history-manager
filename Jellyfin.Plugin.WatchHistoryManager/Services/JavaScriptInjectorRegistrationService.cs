@@ -3,11 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 
 namespace Jellyfin.Plugin.WatchHistoryManager.Services;
 
@@ -100,41 +100,73 @@ internal sealed class JavaScriptInjectorRegistrationService : IHostedService
     }
 
     private void RegisterScript(string script)
-    {
-        var pluginInterfaceType = GetJavaScriptInjectorPluginInterfaceType();
+{
+    var pluginInterfaceType = GetJavaScriptInjectorPluginInterfaceType();
 
-        if (pluginInterfaceType is null)
+    if (pluginInterfaceType is null)
+    {
+        _logger.LogWarning(
+            "JavaScript Injector plugin was not found. Install JavaScript Injector to enable the start point button.");
+
+        return;
+    }
+
+    var registerMethod = pluginInterfaceType.GetMethod("RegisterScript");
+
+    if (registerMethod is null)
+    {
+        _logger.LogWarning("JavaScript Injector RegisterScript method was not found.");
+        return;
+    }
+
+    var parameterType = registerMethod.GetParameters()[0].ParameterType;
+
+    var registrationJson = JsonSerializer.Serialize(new
+    {
+        id = GetScriptId(),
+        name = "Watch History Manager - Startpunkt setzen",
+        script,
+        enabled = true,
+        requiresAuthentication = true,
+        pluginId = GetPluginId(),
+        pluginName = Plugin.Instance?.Name ?? "Watch History Manager",
+        pluginVersion = Plugin.Instance?.Version.ToString() ?? "0.0.0.0"
+    });
+
+    object? registration;
+
+    if (parameterType == typeof(string))
+    {
+        registration = registrationJson;
+    }
+    else
+    {
+        var parseMethod = parameterType.GetMethod(
+            "Parse",
+            new[] { typeof(string) });
+
+        if (parseMethod is null)
         {
             _logger.LogWarning(
-                "JavaScript Injector plugin was not found. Install JavaScript Injector to enable the start point button.");
+                "Could not create JavaScript Injector registration object. Expected parameter type was {ParameterType}.",
+                parameterType.FullName);
 
             return;
         }
 
-        var registration = new JObject
-        {
-            { "id", GetScriptId() },
-            { "name", "Watch History Manager - Startpunkt setzen" },
-            { "script", script },
-            { "enabled", true },
-            { "requiresAuthentication", true },
-            { "pluginId", GetPluginId() },
-            { "pluginName", Plugin.Instance?.Name ?? "Watch History Manager" },
-            { "pluginVersion", Plugin.Instance?.Version.ToString() ?? "0.0.0.0" }
-        };
-
-        var result = pluginInterfaceType
-            .GetMethod("RegisterScript")
-            ?.Invoke(null, new object[] { registration });
-
-        if (result is bool success && success)
-        {
-            _logger.LogInformation("Registered Watch History Manager JavaScript with JavaScript Injector.");
-            return;
-        }
-
-        _logger.LogWarning("JavaScript Injector did not accept the Watch History Manager script registration.");
+        registration = parseMethod.Invoke(null, new object[] { registrationJson });
     }
+
+    var result = registerMethod.Invoke(null, new[] { registration });
+
+    if (result is bool success && success)
+    {
+        _logger.LogInformation("Registered Watch History Manager JavaScript with JavaScript Injector.");
+        return;
+    }
+
+    _logger.LogWarning("JavaScript Injector did not accept the Watch History Manager script registration.");
+}
 
     private void TryUnregisterScript()
     {
