@@ -108,63 +108,32 @@ internal sealed class PlaybackMonitorService : IHostedService
     }
 
     private void TryMarkPreviousEpisodeAsWatched(
-        User user,
-        EpisodeProgressSnapshot previous,
-        Episode currentEpisode,
-        Configuration.PluginConfiguration config)
+    User user,
+    EpisodeProgressSnapshot previous,
+    Episode currentEpisode,
+    Configuration.PluginConfiguration config)
+{
+    if (!IsDirectNextEpisode(previous.Item, currentEpisode, config.IgnoreSpecials))
     {
-        if (!IsDirectNextEpisode(previous.Item, currentEpisode, config.IgnoreSpecials))
-        {
-            return;
-        }
-
-        if (!ThresholdReached(previous, config))
-        {
-            return;
-        }
-
-        var userData = _userDataManager.GetUserData(user, previous.Item);
-
-        if (userData is null)
-        {
-            _logger.LogDebug(
-                "Watch History Manager could not load user data for user {UserId} and episode {EpisodeId}.",
-                user.Id,
-                previous.Item.Id);
-
-            return;
-        }
-
-        if (userData.Played)
-        {
-            return;
-        }
-
-        userData.Played = true;
-        userData.PlaybackPositionTicks = 0;
-        userData.LastPlayedDate = DateTime.UtcNow;
-
-        if (userData.PlayCount < 1)
-        {
-            userData.PlayCount = 1;
-        }
-
-        _userDataManager.SaveUserData(
-            user,
-            previous.Item,
-            userData,
-            UserDataSaveReason.TogglePlayed,
-            CancellationToken.None);
-
-        _logger.LogInformation(
-            "Marked previous episode as watched for user {UserId}: {SeriesName} S{SeasonNumber:00}E{EpisodeNumber:00}, watched {WatchedPercentage:0.00}%, remaining {RemainingSeconds:0}s.",
-            user.Id,
-            previous.Item.SeriesName,
-            previous.Item.ParentIndexNumber,
-            previous.Item.IndexNumber,
-            previous.WatchedPercentage,
-            previous.RemainingSeconds);
+        return;
     }
+
+    if (!ThresholdReached(previous, config))
+    {
+        return;
+    }
+
+    previous.Item.MarkPlayed(user, DateTime.UtcNow, true);
+
+    _logger.LogInformation(
+        "Marked previous episode as watched for user {UserId}: {SeriesName} S{SeasonNumber:00}E{EpisodeNumber:00}, watched {WatchedPercentage:0.00}%, remaining {RemainingSeconds:0}s.",
+        user.Id,
+        previous.Item.SeriesName,
+        previous.Item.ParentIndexNumber,
+        previous.Item.IndexNumber,
+        previous.WatchedPercentage,
+        previous.RemainingSeconds);
+}
 
     private static bool IsDirectNextEpisode(Episode previousEpisode, Episode currentEpisode, bool ignoreSpecials)
     {
